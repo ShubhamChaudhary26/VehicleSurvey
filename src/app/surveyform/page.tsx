@@ -4,15 +4,23 @@ import VehicleSurveyForm from '@/component/VehicleSurveyForm'; // ✅ correct im
 
 // Define metadata for the page
 export const metadata = {
-  title: 'Vehicle Survey Form',
+  title: 'MintSurvey - Vehicle Ownership Survey',
   description: 'Fill out the vehicle survey form to provide your feedback.',
   keywords: ['vehicle', 'survey', 'form', 'feedback'],
   openGraph: {
-    title: 'Vehicle Survey Form',
-    description: 'Participate in our vehicle survey to share your experience.',
-    url: 'https://yourdomain.com/surveyform', // Replace with your actual domain
-    type: 'website',
-  },
+  title: 'MintSurvey - Vehicle Ownership Survey',
+  description: 'Participate in MintSurvey Vehicle Ownership Survey to share your experience.',
+  url: 'https://www.micollectionapp.com/',
+  type: 'website',
+  images: [
+    {
+      url: 'https://www.micollectionapp.com/MintSurveyLogo.png', // ✅ Full URL to image
+      width: 1200,
+      height: 630,
+      alt: 'MintSurvey - Vehicle Ownership Survey',
+    },
+  ],
+},
 };
 
 export default function SurveyPage() {
