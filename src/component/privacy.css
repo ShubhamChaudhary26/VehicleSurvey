@@ -1,0 +1,163 @@
+/* styles/privacy.css */
+
+/* Root variables for consistency with VehicleSurveyForm */
+:root {
+  --primary-color: #087dba;
+  --secondary-color: #0e4d89;
+  --border-color: #d1d5db;
+  --error-color: #ef4444;
+  --text-color: #0e4d89;
+  --bg-color: #ffffff;
+  --bg-gray: #f3f4f6;
+  --border-radius: 10px;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --spacing-md: 12px;
+  --spacing-lg: 8px;
+  --spacing-xl: 24px;
+  --question-border-color: #a8a9ab; 
+}
+
+/* Privacy Policy Container */
+.privacy-policy-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  background-color: var(--bg-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--text-color);
+}
+
+/* Header Container for h1 and Back Button */
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+/* Headings */
+.privacy-policy-container h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+  color: var(--heading-color); /* Updated to #4A148C */
+  text-align: left;
+}
+
+.privacy-policy-container h2 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--heading-color); /* Updated to #4A148C */
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+/* Paragraphs */
+.privacy-policy-container p {
+  font-size: var(--font-size-base);
+  line-height: 20px;
+  color: #6b7280; /* Equivalent to text-gray-600 */
+  margin-bottom: 16px;
+}
+
+/* Links */
+.privacy-policy-container a {
+  color: var(--primary-color);
+  text-decoration: underline;
+  transition: color 0.3s ease;
+}
+
+.privacy-policy-container a:hover {
+  color: var(--secondary-color);
+}
+
+/* Lists */
+.privacy-policy-container ul {
+  list-style-type: disc;
+  list-style-position: inside;
+  margin-left: 16px;
+  margin-bottom: 16px;
+}
+
+.privacy-policy-container ul li {
+  font-size: var(--font-size-base);
+  line-height: 20px;
+  color: #6b7280; /* Equivalent to text-gray-600 */
+  margin-bottom: 8px;
+}
+
+/* Strong and Bold Text */
+.privacy-policy-container strong,
+.privacy-policy-container b {
+  font-weight: 700;
+  color: #000000;
+}
+
+/* Back Button */
+.back-button {
+  padding: 12px 24px;
+  background-color: var(--secondary-color);
+  color: #ffffff;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  border: none;
+  text-align: center;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.back-button:hover {
+  background-color: var(--primary-color);
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .privacy-policy-container {
+    padding: 16px;
+  }
+
+  .header-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .back-button {
+    width: 100%;
+    max-width: 200px;
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .privacy-policy-container h1 {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .privacy-policy-container h2 {
+    font-size: 14px;
+    line-height: 20px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+
+  .privacy-policy-container p,
+  .privacy-policy-container ul li {
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .privacy-policy-container ul {
+    margin-left: 12px;
+    margin-bottom: 12px;
+  }
+}
