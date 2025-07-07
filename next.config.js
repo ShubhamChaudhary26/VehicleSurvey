@@ -23,8 +23,9 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value:
-              "default-src 'self'; img-src * data:; script-src 'self'; style-src 'self' 'unsafe-inline'",
+              "default-src 'self'; img-src * data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
           },
+
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
