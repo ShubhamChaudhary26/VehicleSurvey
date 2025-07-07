@@ -1,4 +1,3 @@
-
 // app/privacy-policy/page.tsx (or pages/privacy-policy.tsx)
 import './privacy.css'; // Adjust path based on your project structure
 import Link from 'next/link';
@@ -93,7 +92,7 @@ export default function PrivacyPolicy() {
         To exercise these rights, email: <a href="mailto:admin@mintsurvey.com">admin@mintsurvey.com</a>
       </p>
 
-      <h1 className='header-container'>10. Children’s Privacy</h1>
+      <h1 className='header-container'>10. Children&apos;s Privacy</h1>
       <p>
         Our surveys are not intended for children under 16. If we collect such data unknowingly, it will be deleted immediately.
       </p>
