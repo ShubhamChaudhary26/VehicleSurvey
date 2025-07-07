@@ -21,10 +21,18 @@ const nextConfig = {
             value: 'max-age=63072000; includeSubDomains; preload', // Enforce HTTPS
           },
           {
-            key: 'Content-Security-Policy',
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src * data:; connect-src *;",
-          },
+              key: 'Content-Security-Policy',
+              value: `
+                default-src 'self';
+                script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com;
+                style-src 'self' 'unsafe-inline';
+                img-src * data:;
+                connect-src *;
+                frame-src https://www.google.com;
+                child-src https://www.google.com;
+                object-src 'none';
+              `.replace(/\s{2,}/g, ' ').trim(),
+            },
 
 
 
