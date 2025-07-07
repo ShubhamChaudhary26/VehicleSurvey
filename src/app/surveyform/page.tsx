@@ -1,4 +1,4 @@
-'use client';
+
 
 import VehicleSurveyForm from '@/component/VehicleSurveyForm'; // ✅ correct import
 
