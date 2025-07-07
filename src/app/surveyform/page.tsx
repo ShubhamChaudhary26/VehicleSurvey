@@ -15,8 +15,8 @@ export const metadata = {
   images: [
     {
       url: 'https://www.micollectionapp.com/MintSurveyLogo.png', // ✅ Full URL to image
-      width: 1200,
-      height: 630,
+      // width: 1200,
+      // height: 630,
       alt: 'MintSurvey - Vehicle Ownership Survey',
     },
   ],
