@@ -30,7 +30,7 @@ export const metadata = {
   type: 'website',
   images: [
     {
-      url: 'https://www.micollectionapp.com/mintsurveylogo.jpg', // ✅ Full URL to image
+      url: 'https://www.micollectionapp.com/milogo.jpg', // ✅ Full URL to image
       width: 1200,
       height: 630,
       alt: 'MintSurvey - Vehicle Ownership Survey',

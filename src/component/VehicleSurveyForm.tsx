@@ -1594,7 +1594,7 @@ export default function VehicleSurveyForm() {
             </div>
           </div>
         </div>
-        <div className="text-center space-y-4 p-6 bg-white rounded-lg shadow-md border question-border mt-8">
+        <div className="text-center space-y-4 p-6 bg-white rounded-lg shadow-md border question-border mt-8 text-green-600">
           <p className="text-lg !text-green-600 font-semibold">
             Thank You for Participating!
           </p>
