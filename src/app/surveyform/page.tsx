@@ -5,7 +5,7 @@ import VehicleSurveyForm from '@/component/VehicleSurveyForm'; // ✅ correct im
 // Define metadata for the page
 export const metadata = {
   title: 'MintSurvey - Vehicle Ownership Survey',
-  description: 'Fill out the vehicle survey form to provide your feedback.',
+  description: 'Participate in MintSurvey Vehicle Ownership Survey to share your experience.',
   keywords: ['vehicle', 'survey', 'form', 'feedback'],
   openGraph: {
   title: 'MintSurvey - Vehicle Ownership Survey',

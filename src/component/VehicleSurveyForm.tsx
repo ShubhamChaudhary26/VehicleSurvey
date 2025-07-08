@@ -1595,14 +1595,14 @@ export default function VehicleSurveyForm() {
           </div>
         </div>
         <div className="text-center space-y-4 p-6 bg-white rounded-lg shadow-md border question-border mt-8">
-          <p className="text-lg text-green-600 font-semibold">
+          <p className="text-lg !text-green-600 font-semibold">
             Thank You for Participating!
           </p>
-          <p className="text-base text-green-600">
+          <p className="text-base !text-green-600">
             We truly appreciate you taking the time to share your thoughts with MintSurvey.
           </p>
-          <p className="text-base text-green-600">
-            Your response has been successfully recorded. Your input helps us grow and serve you better!
+          <p className="text-base !text-green-600">
+            Your response has been successfully recorded. Your insights will help shape the future of the automotive industry.
           </p>
         </div>
       </main>

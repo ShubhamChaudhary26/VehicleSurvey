@@ -20,8 +20,23 @@ import './global.css';
 import Script from 'next/script'; // ✅ Important for external scripts
 
 export const metadata = {
-  title: 'Vehicle Ownership Survey',
-  description: 'Participate in our vehicle ownership survey to share your experiences and feedback about owning and using your vehicle.',
+  title: 'MintSurvey - Vehicle Ownership Survey',
+  description: 'Participate in MintSurvey Vehicle Ownership Survey to share your experience and help shape the future of mobility.',
+  keywords: ['vehicle', 'survey', 'form', 'feedback'],
+  openGraph: {
+  title: 'MintSurvey - Vehicle Ownership Survey',
+  description: 'Participate in MintSurvey Vehicle Ownership Survey to share your experience and help shape the future of mobility.',
+  url: 'https://www.micollectionapp.com/',
+  type: 'website',
+  images: [
+    {
+      url: 'https://www.micollectionapp.com/MintSurveyLogo.png', // ✅ Full URL to image
+      width: 1200,
+      height: 630,
+      alt: 'MintSurvey - Vehicle Ownership Survey',
+    },
+  ],
+},
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
