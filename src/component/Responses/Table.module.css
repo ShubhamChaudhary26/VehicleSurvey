@@ -1,0 +1,85 @@
+.container {
+  max-width: 1400px;
+  height: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  min-height: 300px;
+}
+
+.headerRow {
+  background-color: #f2f2f2;
+}
+
+.headerCell {
+  border: 1px solid #ddd;
+  padding: 12px; 
+  font-weight:bolder;
+  text-align: left;
+  white-space: nowrap;
+  min-height: 100px; 
+}
+
+.row {
+  border: 1px solid #ddd;
+  min-height: 100px;
+}
+
+.cell {
+  border: 1px solid #ddd;
+  padding: 12px; 
+  white-space: nowrap;
+  min-height: 50px; 
+}
+
+.cell:nth-child(1) {
+  font-size: 18px;
+}
+
+.loading {
+  text-align: center;
+  font-size: 18px;
+  color: #333;
+}
+
+.error {
+  text-align: center;
+  font-size: 18px;
+  color: #d32f2f;
+}
+
+.noData {
+  text-align: center;
+  font-size: 18px;
+  color: #666;
+}
+
+
+
+.recommendList {
+  list-style-type: disc;
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.recommendItem {
+  margin-bottom: 4px;
+}
+

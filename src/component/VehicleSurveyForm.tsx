@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -133,6 +132,7 @@ export default function VehicleSurveyForm() {
   const [showSurvey, setShowSurvey] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
   const [privacyPolicyAgreed, setPrivacyPolicyAgreed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const DEBUG = process.env.PROD === 'false';
 
@@ -231,21 +231,59 @@ export default function VehicleSurveyForm() {
     }
   }, [formData, currentQuestionIndex, questions, hasInteracted]);
 
-  useEffect(() => {
-    const highestPurchaseType =
-      formData.purchaseTypes.length > 0
-        ? formData.purchaseTypes.reduce((a, b) => {
-            const numA = parseInt(a.split('.')[0]) || 0;
-            const numB = parseInt(b.split('.')[0]) || 0;
-            return numA > numB ? a : b;
-          })
-        : '';
+ useEffect(() => {
+  const highestPurchaseType =
+    formData.purchaseTypes.length > 0
+      ? formData.purchaseTypes.reduce((a, b) => {
+          const numA = parseInt(a.split('.')[0]) || 0;
+          const numB = parseInt(b.split('.')[0]) || 0;
+          return numA > numB ? a : b;
+        })
+      : '';
 
-    if (highestPurchaseType === '10. None of the above') {
-      setBrands([]);
-      setModels([]);
-      setAlternativeBrands([]);
-      setAlternativeModels([]);
+  if (highestPurchaseType === '10. None of the above') {
+    setBrands([]);
+    setModels([]);
+    setAlternativeBrands([]);
+    setAlternativeModels([]);
+    setFormData((prev) => ({
+      ...prev,
+      brand: '',
+      customBrand: '',
+      vehicleModel: '',
+      customModel: '',
+      purchaseMonth: '',
+      purchaseYear: '',
+      vehicleCondition: '',
+      alternativeBrand: '',
+      customAlternativeBrand: '',
+      customAlternativeModel: '',
+      customAlternativeModelOther: '',
+      recommendLikelihood: '',
+      recommendReasons: [],
+      satisfactionLevel: '',
+      repurchaseLikelihood: '',
+    }));
+    return;
+  }
+
+  if (highestPurchaseType) {
+    const key = keyMap[highestPurchaseType] || highestPurchaseType.toLowerCase().replace(/\s+/g, '');
+    const newBrands = [
+      ...(Object.keys(vehicleData[key] || {}).filter(
+        (brand) => brand !== 'Other' && brand !== 'None'
+      ).sort()),
+      'Other'
+    ];
+    setBrands(newBrands);
+    setAlternativeBrands([...newBrands]);
+
+    if (DEBUG) {
+      console.log('Brands:', newBrands);
+      console.log('Alternative Brands:', newBrands);
+    }
+
+    if (!newBrands.includes(formData.brand)) {
       setFormData((prev) => ({
         ...prev,
         brand: '',
@@ -255,66 +293,57 @@ export default function VehicleSurveyForm() {
         purchaseMonth: '',
         purchaseYear: '',
         vehicleCondition: '',
-        alternativeBrand: '',
-        customAlternativeBrand: '',
-        customAlternativeModel: '',
-        customAlternativeModelOther: '',
-        recommendLikelihood: '',
-        recommendReasons: [],
-        satisfactionLevel: '',
-        repurchaseLikelihood: '',
       }));
-      return;
-    }
-
-    if (highestPurchaseType) {
-      const key = keyMap[highestPurchaseType] || highestPurchaseType.toLowerCase().replace(/\s+/g, '');
-      const newBrands = [...(Object.keys(vehicleData[key] || {}).sort()), 'Other'];
-      setBrands(newBrands);
-      setAlternativeBrands(newBrands);
-
-      if (!newBrands.includes(formData.brand)) {
+      setModels([]);
+    } else {
+      const newModels = formData.brand
+        ? [
+            ...(vehicleData[key]?.[formData.brand] || []).filter(
+              (model) => model !== 'Other' && model !== 'None'
+            ).sort(),
+            'Other'
+          ]
+        : [];
+      setModels(newModels);
+      if (DEBUG) {
+        console.log('Models for', formData.brand, ':', newModels);
+      }
+      if (!newModels.includes(formData.vehicleModel)) {
         setFormData((prev) => ({
           ...prev,
-          brand: '',
-          customBrand: '',
           vehicleModel: '',
           customModel: '',
           purchaseMonth: '',
           purchaseYear: '',
           vehicleCondition: '',
         }));
-        setModels([]);
-      } else {
-        const newModels = formData.brand ? [...(vehicleData[key]?.[formData.brand] || []), 'Other'].sort() : [];
-        setModels(newModels);
-        if (!newModels.includes(formData.vehicleModel)) {
-          setFormData((prev) => ({
-            ...prev,
-            vehicleModel: '',
-            customModel: '',
-            purchaseMonth: '',
-            purchaseYear: '',
-            vehicleCondition: '',
-          }));
-        }
-      }
-
-      if (formData.alternativeBrand && newBrands.includes(formData.alternativeBrand)) {
-        const altModels = [...(vehicleData[key]?.[formData.alternativeBrand] || []), 'None', 'Other (please specify)'].sort();
-        setAlternativeModels(altModels);
-      } else {
-        setAlternativeModels([]);
-        setFormData((prev) => ({
-          ...prev,
-          alternativeBrand: '',
-          customAlternativeBrand: '',
-          customAlternativeModel: '',
-          customAlternativeModelOther: '',
-        }));
       }
     }
-  }, [formData.purchaseTypes, formData.brand, formData.alternativeBrand]);
+
+    if (formData.alternativeBrand && newBrands.includes(formData.alternativeBrand)) {
+      const altModels = [
+        ...(vehicleData[key]?.[formData.alternativeBrand] || []).filter(
+          (model) => model !== 'Other' && model !== 'None' && model !== 'Other (please specify)'
+        ).sort(),
+        'None',
+        'Other (please specify)'
+      ];
+      setAlternativeModels(altModels);
+      if (DEBUG) {
+        console.log('Alternative Models for', formData.alternativeBrand, ':', altModels);
+      }
+    } else {
+      setAlternativeModels([]);
+      setFormData((prev) => ({
+        ...prev,
+        alternativeBrand: '',
+        customAlternativeBrand: '',
+        customAlternativeModel: '',
+        customAlternativeModelOther: '',
+      }));
+    }
+  }
+}, [formData.purchaseTypes, formData.brand, formData.alternativeBrand]);
 
   useEffect(() => {
     const noneSelected = formData.purchaseTypes.includes('10. None of the above');
@@ -568,10 +597,12 @@ export default function VehicleSurveyForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmissionError(null);
+    setIsSubmitting(true);
 
     const newErrors = validate();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      setIsSubmitting(false);
       if (DEBUG) console.log('Validation errors on submit:', newErrors);
       return;
     }
@@ -686,6 +717,8 @@ export default function VehicleSurveyForm() {
         error.message || 'Submission failed. Please check your network connection and try again.';
       setErrors({ form: errorMessage });
       setSubmissionError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1734,6 +1767,14 @@ export default function VehicleSurveyForm() {
                 </p>
               </div>
             )}
+            {isSubmitting && (
+              <div className="loader-overlay">
+                <div className="loader-container">
+                  <div className="loader"></div>
+                  <p className="loader-text">Please wait, submitting your survey...</p>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end form-buttons mt-6">
               {shouldShowNextButton() && (
                 <button
@@ -1747,7 +1788,12 @@ export default function VehicleSurveyForm() {
               {shouldShowSubmitButton() && (
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-color"
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 rounded-lg text-white ${
+                    isSubmitting
+                      ? 'bg-gray-500 cursor-not-allowed'
+                      : 'bg-primary hover:bg-primary-color'
+                  }`}
                 >
                   Submit
                 </button>

@@ -84,3 +84,19 @@ export async function POST(request: Request) {
     );
   }
 }
+
+
+export async function GET() {
+  try {
+    await connectToDatabase();
+    const responses = await SurveyResponse.find({});
+    return NextResponse.json(responses, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching survey responses:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'Failed to fetch survey responses', details: errorMessage },
+      { status: 500 }
+    );
+  }
+}
