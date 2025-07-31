@@ -1,5 +1,15 @@
 'use client';
 
+// Add global declaration for grecaptcha
+declare global {
+  interface Window {
+    grecaptcha: {
+      ready: (cb: () => void) => void;
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+    };
+  }
+}
+
 import { useState, useEffect } from 'react';
 import { vehicleData } from '../app/survey/vehicleData';
 import ReCaptcha from './ReCaptcha';
@@ -15,16 +25,9 @@ import {
   genderOptions,
 } from '../app/survey/vehicleData';
 
-declare global {
-  interface Window {
-    grecaptcha: {
-      ready: (cb: () => void) => void;
-      execute: (siteKey: string, options: { action: string }) => Promise<string>;
-    };
-  }
-}
-
 interface FormData {
+  industry: string;
+  customIndustry: string;
   name: string;
   age: string;
   gender: string;
@@ -53,6 +56,8 @@ interface FormData {
 }
 
 interface FormErrors {
+  industry?: string;
+  customIndustry?: string;
   name?: string;
   age?: string;
   gender?: string;
@@ -91,6 +96,8 @@ interface Question {
 
 export default function VehicleSurveyForm() {
   const [formData, setFormData] = useState<FormData>({
+    industry: '',
+    customIndustry: '',
     name: '',
     age: '',
     gender: '',
@@ -133,11 +140,14 @@ export default function VehicleSurveyForm() {
   const [showThankYou, setShowThankYou] = useState(false);
   const [privacyPolicyAgreed, setPrivacyPolicyAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const DEBUG = process.env.PROD === 'false';
 
   useEffect(() => {
     setFormData({
+      industry: '',
+      customIndustry: '',
       name: '',
       age: '',
       gender: '',
@@ -176,114 +186,74 @@ export default function VehicleSurveyForm() {
   );
 
   useEffect(() => {
-    const currentQuestion = questions[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
+  if (DEBUG) {
+    console.log('Auto-advance useEffect:', {
+      questionId: currentQuestion?.id,
+      isSingleChoice: currentQuestion?.isSingleChoice,
+      hasInteracted: hasInteracted[currentQuestion?.id],
+      formData: {
+        purchaseMonth: formData.purchaseMonth,
+        purchaseYear: formData.purchaseYear,
+        [currentQuestion?.id]: formData[currentQuestion?.id as keyof FormData],
+      },
+      currentQuestionIndex,
+      totalQuestions: questions.length,
+    });
+  }
+  if (currentQuestion?.isSingleChoice && hasInteracted[currentQuestion?.id]) {
+    const isValid = currentQuestion.validate();
     if (DEBUG) {
-      console.log('Auto-advance useEffect:', {
-        questionId: currentQuestion?.id,
-        isSingleChoice: currentQuestion?.isSingleChoice,
-        hasInteracted: hasInteracted[currentQuestion?.id],
-        formData: {
-          purchaseMonth: formData.purchaseMonth,
-          purchaseYear: formData.purchaseYear,
-          [currentQuestion?.id]: formData[currentQuestion?.id as keyof FormData],
-        },
-        currentQuestionIndex,
-        totalQuestions: questions.length,
+      console.log(`Validation for ${currentQuestion.id}:`, {
+        isValid,
+        errors: currentQuestion.error(),
+        formData: formData[currentQuestion.id as keyof FormData],
       });
     }
-    if (currentQuestion?.isSingleChoice && hasInteracted[currentQuestion?.id]) {
-      const isValid = currentQuestion.validate();
-      if (DEBUG) {
-        console.log(`Validation for ${currentQuestion.id}:`, {
-          isValid,
-          errors: currentQuestion.error(),
-          formData: formData[currentQuestion.id as keyof FormData],
-        });
-      }
-      if (isValid) {
-        if (
-          currentQuestionIndex === 4 &&
-          formData.purchaseTypes.includes('10. None of the above')
-        ) {
-          const newErrors = validate();
-          if (Object.keys(newErrors).length === 0) {
-            handleSubmit(new Event('submit') as any);
-          } else {
-            setErrors(newErrors);
-            if (DEBUG) console.log('Validation errors on submit:', newErrors);
-          }
-        } else if (currentQuestionIndex < questions.length - 1) {
-          setCurrentQuestionIndex((prev) => {
-            if (DEBUG) console.log(`Advancing to question ${prev + 1} (${questions[prev + 1]?.id})`);
-            return prev + 1;
-          });
-          setHasInteracted((prev) => ({
-            ...prev,
-            [questions[currentQuestionIndex + 1]?.id]: false,
-          }));
-        } else {
-          if (DEBUG) console.log('At last question, no auto-advance');
+    if (isValid) {
+      if (currentQuestionIndex === 0) {
+        if (['Automotive', 'Automotive Research', 'Market Research', 'Automotive Magazine / Media', 'Advertising / Ad Agency'].includes(formData.industry)) {
+          setShowSurvey(false);
+          setShowThankYou(true);
+          return;
         }
-      } else {
-        setErrors((prev) => ({ ...prev, ...currentQuestion.error() }));
-        if (DEBUG) console.log('Validation failed:', currentQuestion.error());
       }
+      if (currentQuestionIndex === 1 && formData.purchaseTypes.includes('10. None of the above')) {
+        setShowSurvey(false);
+        setShowThankYou(true);
+        return;
+      }
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex((prev) => {
+          if (DEBUG) console.log(`Advancing to question ${prev + 1} (${questions[prev + 1]?.id})`);
+          return prev + 1;
+        });
+        setHasInteracted((prev) => ({
+          ...prev,
+          [questions[currentQuestionIndex + 1]?.id]: false,
+        }));
+      }
+    } else {
+      setErrors((prev) => ({ ...prev, ...currentQuestion.error() }));
+      if (DEBUG) console.log('Validation failed:', currentQuestion.error());
     }
-  }, [formData, currentQuestionIndex, questions, hasInteracted]);
-
- useEffect(() => {
-  const highestPurchaseType =
-    formData.purchaseTypes.length > 0
-      ? formData.purchaseTypes.reduce((a, b) => {
-          const numA = parseInt(a.split('.')[0]) || 0;
-          const numB = parseInt(b.split('.')[0]) || 0;
-          return numA > numB ? a : b;
-        })
-      : '';
-
-  if (highestPurchaseType === '10. None of the above') {
-    setBrands([]);
-    setModels([]);
-    setAlternativeBrands([]);
-    setAlternativeModels([]);
-    setFormData((prev) => ({
-      ...prev,
-      brand: '',
-      customBrand: '',
-      vehicleModel: '',
-      customModel: '',
-      purchaseMonth: '',
-      purchaseYear: '',
-      vehicleCondition: '',
-      alternativeBrand: '',
-      customAlternativeBrand: '',
-      customAlternativeModel: '',
-      customAlternativeModelOther: '',
-      recommendLikelihood: '',
-      recommendReasons: [],
-      satisfactionLevel: '',
-      repurchaseLikelihood: '',
-    }));
-    return;
   }
+}, [formData, currentQuestionIndex, questions, hasInteracted]);
+  useEffect(() => {
+    const highestPurchaseType =
+      formData.purchaseTypes.length > 0
+        ? formData.purchaseTypes.reduce((a, b) => {
+            const numA = parseInt(a.split('.')[0]) || 0;
+            const numB = parseInt(b.split('.')[0]) || 0;
+            return numA > numB ? a : b;
+          })
+        : '';
 
-  if (highestPurchaseType) {
-    const key = keyMap[highestPurchaseType] || highestPurchaseType.toLowerCase().replace(/\s+/g, '');
-    const newBrands = [
-      ...(Object.keys(vehicleData[key] || {}).filter(
-        (brand) => brand !== 'Other' && brand !== 'None'
-      ).sort()),
-      'Other'
-    ];
-    setBrands(newBrands);
-    setAlternativeBrands([...newBrands]);
-
-    if (DEBUG) {
-      console.log('Brands:', newBrands);
-      console.log('Alternative Brands:', newBrands);
-    }
-
-    if (!newBrands.includes(formData.brand)) {
+    if (highestPurchaseType === '10. None of the above') {
+      setBrands([]);
+      setModels([]);
+      setAlternativeBrands([]);
+      setAlternativeModels([]);
       setFormData((prev) => ({
         ...prev,
         brand: '',
@@ -293,61 +263,105 @@ export default function VehicleSurveyForm() {
         purchaseMonth: '',
         purchaseYear: '',
         vehicleCondition: '',
+        alternativeBrand: '',
+        customAlternativeBrand: '',
+        customAlternativeModel: '',
+        customAlternativeModelOther: '',
+        recommendLikelihood: '',
+        recommendReasons: [],
+        satisfactionLevel: '',
+        repurchaseLikelihood: '',
       }));
-      setModels([]);
-    } else {
-      const newModels = formData.brand
-        ? [
-            ...(vehicleData[key]?.[formData.brand] || []).filter(
-              (model) => model !== 'Other' && model !== 'None'
-            ).sort(),
-            'Other'
-          ]
-        : [];
-      setModels(newModels);
+      return;
+    }
+
+    if (highestPurchaseType) {
+      const key = keyMap[highestPurchaseType] || highestPurchaseType.toLowerCase().replace(/\s+/g, '');
+      const newBrands = [
+        ...(Object.keys(vehicleData[key] || {}).filter(
+          (brand) => brand !== 'Other' && brand !== 'None'
+        ).sort()),
+        'Other'
+      ];
+      setBrands(newBrands);
+      setAlternativeBrands([...newBrands]);
+
       if (DEBUG) {
-        console.log('Models for', formData.brand, ':', newModels);
+        console.log('Brands:', newBrands);
+        console.log('Alternative Brands:', newBrands);
       }
-      if (!newModels.includes(formData.vehicleModel)) {
+
+      if (!newBrands.includes(formData.brand)) {
         setFormData((prev) => ({
           ...prev,
+          brand: '',
+          customBrand: '',
           vehicleModel: '',
           customModel: '',
           purchaseMonth: '',
           purchaseYear: '',
           vehicleCondition: '',
         }));
+        setModels([]);
+      } else {
+        const newModels = formData.brand
+          ? [
+              ...(vehicleData[key]?.[formData.brand] || []).filter(
+                (model) => model !== 'Other' && model !== 'None'
+              ).sort(),
+              'Other'
+            ]
+          : [];
+        setModels(newModels);
+        if (DEBUG) {
+          console.log('Models for', formData.brand, ':', newModels);
+        }
+        if (!newModels.includes(formData.vehicleModel)) {
+          setFormData((prev) => ({
+            ...prev,
+            vehicleModel: '',
+            customModel: '',
+            purchaseMonth: '',
+            purchaseYear: '',
+            vehicleCondition: '',
+          }));
+        }
       }
-    }
 
-    if (formData.alternativeBrand && newBrands.includes(formData.alternativeBrand)) {
-      const altModels = [
-        ...(vehicleData[key]?.[formData.alternativeBrand] || []).filter(
-          (model) => model !== 'Other' && model !== 'None' && model !== 'Other (please specify)'
-        ).sort(),
-        'None',
-        'Other (please specify)'
-      ];
-      setAlternativeModels(altModels);
-      if (DEBUG) {
-        console.log('Alternative Models for', formData.alternativeBrand, ':', altModels);
+      if (formData.alternativeBrand && newBrands.includes(formData.alternativeBrand)) {
+        const altModels = [
+          ...(vehicleData[key]?.[formData.alternativeBrand] || []).filter(
+            (model) => model !== 'Other' && model !== 'None' && model !== 'Other (please specify)'
+          ).sort(),
+          'None',
+          'Other (please specify)'
+        ];
+        setAlternativeModels(altModels);
+        if (DEBUG) {
+          console.log('Alternative Models for', formData.alternativeBrand, ':', altModels);
+        }
+      } else {
+        setAlternativeModels([]);
+        setFormData((prev) => ({
+          ...prev,
+          alternativeBrand: '',
+          customAlternativeBrand: '',
+          customAlternativeModel: '',
+          customAlternativeModelOther: '',
+        }));
       }
-    } else {
-      setAlternativeModels([]);
-      setFormData((prev) => ({
-        ...prev,
-        alternativeBrand: '',
-        customAlternativeBrand: '',
-        customAlternativeModel: '',
-        customAlternativeModelOther: '',
-      }));
     }
-  }
-}, [formData.purchaseTypes, formData.brand, formData.alternativeBrand]);
+  }, [formData.purchaseTypes, formData.brand, formData.alternativeBrand]);
 
   useEffect(() => {
     const noneSelected = formData.purchaseTypes.includes('10. None of the above');
     const fields = [
+      { key: 'industry', value: formData.industry, required: true },
+      {
+        key: 'customIndustry',
+        value: formData.industry === 'Other' ? formData.customIndustry : 'N/A',
+        required: formData.industry === 'Other',
+      },
       { key: 'name', value: formData.name, required: true },
       { key: 'age', value: formData.age, required: true },
       { key: 'gender', value: formData.gender, required: true },
@@ -424,6 +438,11 @@ export default function VehicleSurveyForm() {
 
   const validate = (): FormErrors => {
     const newErrors: FormErrors = {};
+    if (!formData.industry) {
+      newErrors.industry = 'Please select an industry';
+    } else if (formData.industry === 'Other' && !formData.customIndustry.trim()) {
+      newErrors.customIndustry = 'Please specify your industry';
+    }
     if (!formData.name.trim()) newErrors.name = 'Name is required';
     if (!formData.age) newErrors.age = 'Please select an age group';
     if (!formData.gender) newErrors.gender = 'Please select a gender';
@@ -544,9 +563,38 @@ export default function VehicleSurveyForm() {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+      ...(name === 'industry' && value !== 'Other' ? { customIndustry: '' } : {}),
+      ...(name === 'industry' && ['Automotive', 'Automotive Research', 'Market Research', 'Automotive Magazine / Media', 'Advertising / Ad Agency'].includes(value)
+        ? {
+            customIndustry: '',
+            name: '',
+            age: '',
+            gender: '',
+            city: '',
+            otherCity: '',
+            purchaseTypes: [],
+            brand: '',
+            customBrand: '',
+            vehicleModel: '',
+            customModel: '',
+            purchaseMonth: '',
+            purchaseYear: '',
+            vehicleCondition: '',
+            recommendLikelihood: '',
+            recommendReasons: [],
+            customReason: '',
+            satisfactionLevel: '',
+            repurchaseLikelihood: '',
+            alternativeBrand: '',
+            customAlternativeBrand: '',
+            customAlternativeModel: '',
+            customAlternativeModelOther: '',
+            email: '',
+            contactNumber: '',
+          }
+        : {}),
       ...(name === 'brand' ? { customBrand: '', vehicleModel: '', customModel: '', purchaseMonth: '', purchaseYear: '', vehicleCondition: '' } : {}),
       ...(name === 'vehicleModel' && value !== 'Other' ? { customModel: '' } : {}),
-      ...(name === 'brand' && value !== 'Other' ? { customBrand: '' } : {}),
       ...(name === 'alternativeBrand' ? { customAlternativeBrand: '', customAlternativeModel: '', customAlternativeModelOther: '' } : {}),
       ...(name === 'customAlternativeModel' && value !== 'Other (please specify)' ? { customAlternativeModelOther: '' } : {}),
     }));
@@ -554,6 +602,8 @@ export default function VehicleSurveyForm() {
     setErrors((prev) => ({
       ...prev,
       [name]: undefined,
+      ...(name === 'industry' && value ? { industry: undefined, customIndustry: undefined } : {}),
+      ...(name === 'customIndustry' && value.trim() ? { customIndustry: undefined } : {}),
       ...(name === 'purchaseMonth' || name === 'purchaseYear'
         ? { purchaseMonth: undefined, purchaseYear: undefined }
         : {}),
@@ -563,6 +613,8 @@ export default function VehicleSurveyForm() {
 
     if (
       [
+        'industry',
+        'customIndustry',
         'age',
         'gender',
         'city',
@@ -596,8 +648,9 @@ export default function VehicleSurveyForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmissionError(null);
+    if (isSubmitted) return;
     setIsSubmitting(true);
+    setSubmissionError(null);
 
     const newErrors = validate();
     if (Object.keys(newErrors).length > 0) {
@@ -628,6 +681,7 @@ export default function VehicleSurveyForm() {
       }, formData.purchaseTypes[0] || '');
 
       const payload = {
+        industry: formData.industry === 'Other' ? formData.customIndustry.trim() || 'Other' : formData.industry || undefined,
         name: formData.name.trim(),
         age: formData.age,
         gender: formData.gender,
@@ -658,8 +712,8 @@ export default function VehicleSurveyForm() {
         createdAt: new Date(),
         recaptchaToken: token,
       };
-   
-      const apiUrl = process.env.NEXT_PUBLIC_PROD==='false'? `${process.env.NEXT_PUBLIC_ALLOWED_ORIGIN_DEV}/api/submit` : `${process.env.NEXT_PUBLIC_ALLOWED_ORIGIN_PROD}/api/submit`;
+
+      const apiUrl = process.env.NEXT_PUBLIC_PROD === 'false' ? `${process.env.NEXT_PUBLIC_ALLOWED_ORIGIN_DEV}/api/submit` : `${process.env.NEXT_PUBLIC_ALLOWED_ORIGIN_PROD}/api/submit`;
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -669,8 +723,11 @@ export default function VehicleSurveyForm() {
       const responseData = await response.json();
 
       if (response.ok) {
+        setIsSubmitted(true);
         setSubmitted(true);
         setFormData({
+          industry: '',
+          customIndustry: '',
           name: '',
           age: '',
           gender: '',
@@ -722,6 +779,20 @@ export default function VehicleSurveyForm() {
     }
   };
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.values(hasInteracted).some((interacted) => interacted) && !isSubmitted) {
+        e.preventDefault();
+        handleSubmit(new Event('submit') as any);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasInteracted, isSubmitted]);
+
   const displayVehicleType = (type: string) => {
     return type.replace(/^\d+\.\s*/, '').trim();
   };
@@ -747,145 +818,67 @@ export default function VehicleSurveyForm() {
 
     const baseQuestions: Question[] = [
       {
-        id: 'name',
+        id: 'industry',
         component: (
           <div className="mb-10 p-6 rounded-lg shadow-md border mt-8 question-border bg-white">
             <label
-              htmlFor="name"
+              htmlFor="industry"
               className="block text-black font-semibold text-lg mb-2"
-            >{`1. What's your name?`}</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`w-full p-3 border mt-2 rounded-lg ${
-                errors.name && hasInteracted.name ? 'border-error' : ''
-              }`}
-            />
-            {errors.name && hasInteracted.name && (
-              <p className="text-error text-sm mt-1">{errors.name}</p>
-            )}
-          </div>
-        ),
-        validate: () => !!formData.name.trim(),
-        error: () => ({ name: 'Name is required' }),
-      },
-      {
-        id: 'age',
-        component: (
-          <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
-            <label
-              htmlFor="age"
-              className="block text-black font-semibold text-lg mb-2"
-            >{`2. What's your age group?`}</label>
+            >{`1. Which of the following industries do you primarily belong to?`}</label>
             <select
-              id="age"
-              name="age"
-              value={formData.age}
+              id="industry"
+              name="industry"
+              value={formData.industry}
               onChange={handleChange}
               className={`w-full p-3 border mt-2 rounded-lg text-black ${
-                errors.age && hasInteracted.age ? '' : ''
+                errors.industry && hasInteracted.industry ? 'border-error' : ''
               }`}
             >
-              <option value="">Select Age Group</option>
-              {ageOptions.map((age) => (
-                <option key={age} value={age}>
-                  {age}
-                </option>
-              ))}
+              <option value="">Select Industry</option>
+              <option value="Automotive">Automotive</option>
+              <option value="Automotive Research">Automotive Research</option>
+              <option value="Market Research">Market Research</option>
+              <option value="Automotive Magazine / Media">Automotive Magazine / Media</option>
+              <option value="Advertising / Ad Agency">Advertising / Ad Agency</option>
+              <option value="Other">Other (Please specify)</option>
             </select>
-          </div>
-        ),
-        validate: () => !!formData.age,
-        error: () => ({ age: 'Please select an age group' }),
-        isSingleChoice: true,
-      },
-      {
-        id: 'gender',
-        component: (
-          <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
-            <label
-              htmlFor="gender"
-              className="block text-black font-semibold text-lg mb-2"
-            >{`3. Please select your gender`}</label>
-            <select
-              id="gender"
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              className={`w-full p-3 border mt-2 rounded-lg text-black ${
-                errors.gender && hasInteracted.gender ? '' : ''
-              }`}
-            >
-              <option value="">Select Gender</option>
-              {genderOptions.map((gender) => (
-                <option key={gender} value={gender}>
-                  {gender}
-                </option>
-              ))}
-            </select>
-          </div>
-        ),
-        validate: () => !!formData.gender,
-        error: () => ({ gender: 'Please select a gender ' }),
-        isSingleChoice: true,
-      },
-      {
-        id: 'city',
-        component: (
-          <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question fourteenthquestion-border bg-white">
-            <label
-              htmlFor="city"
-              className="block text-black font-semibold text-lg mb-2"
-            >{`4. Which city do you live in?`}</label>
-            <select
-              id="city"
-              name="city"
-              value={formData.city}
-              onChange={handleChange}
-              className={`w-full p-3 border mt-2 rounded-lg text-black ${
-                errors.city && hasInteracted.city ? '' : ''
-              }`}
-            >
-              <option value="">Select City</option>
-              {cityOptions.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            {formData.city === 'Other' && (
+            {formData.industry === 'Other' && (
               <div className="mt-4">
                 <input
                   type="text"
-                  id="otherCity"
-                  name="otherCity"
-                  value={formData.otherCity}
+                  id="customIndustry"
+                  name="customIndustry"
+                  value={formData.customIndustry}
                   onChange={handleChange}
-                  placeholder="Please specify"
+                  placeholder="Please specify your industry"
                   className={`w-full p-3 border rounded-lg text-black ${
-                    errors.otherCity && hasInteracted.otherCity ? '' : ''
+                    errors.customIndustry && hasInteracted.customIndustry ? 'border-error' : ''
                   }`}
                 />
               </div>
             )}
+            {errors.industry && hasInteracted.industry && (
+              <p className="text-error text-sm mt-1">{errors.industry}</p>
+            )}
+            {errors.customIndustry && hasInteracted.customIndustry && formData.industry === 'Other' && (
+              <p className="text-error text-sm mt-1">{errors.customIndustry}</p>
+            )}
           </div>
         ),
         validate: () =>
-          !!formData.city && (formData.city !== 'Other' || !!formData.otherCity.trim()),
-        error: () =>
-          !formData.city
-            ? { city: 'Please select a city' }
-            : { otherCity: 'Please specify your city' },
+          !!formData.industry &&
+          (formData.industry !== 'Other' || !!formData.customIndustry.trim()),
+        error: () => ({
+          industry: !formData.industry ? 'Please select an industry' : undefined,
+          customIndustry: formData.industry === 'Other' && !formData.customIndustry.trim() ? 'Please specify your industry' : undefined,
+        }),
         isSingleChoice: true,
       },
       {
         id: 'purchaseTypes',
         component: (
           <div className="mb-10 p-6 rounded-lg shadow-md mt-8 border question-border bg-white">
-            <label className="block text-black font-semibold text-lg mb-2">{`5. Which of these vehicles do you own?`}</label>
+            <label className="block text-black font-semibold text-lg mb-2">{`2. Which of these vehicles do you own?`}</label>
             <div className="flex flex-col gap-3 p-3 mt-2">
               {purchaseTypeOptions.map((type) => (
                 <label
@@ -932,7 +925,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="brand"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`6. Which brand of ${highestPurchaseType} do you own?`}</label>
+              >{`3. Which brand of ${highestPurchaseType} do you own?`}</label>
               <select
                 id="brand"
                 name="brand"
@@ -982,7 +975,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="vehicleModel"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`7. Which model of ${formData.brand === 'Other' ? formData.customBrand || highestPurchaseType : formData.brand || highestPurchaseType} do you own?`}</label>
+              >{`4. Which model of ${formData.brand === 'Other' ? formData.customBrand || highestPurchaseType : formData.brand || highestPurchaseType} do you own?`}</label>
               <select
                 id="vehicleModel"
                 name="vehicleModel"
@@ -1032,7 +1025,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="purchaseMonth"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`8. When did you purchase your ${
+              >{`5. When did you purchase your ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : highestPurchaseType
@@ -1095,7 +1088,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="vehicleCondition"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`9. Was your ${
+              >{`6. Was your ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : highestPurchaseType
@@ -1129,7 +1122,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="recommendLikelihood"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`10. How likely are you to recommend your ${
+              >{`7. How likely are you to recommend your ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : 'vehicle'
@@ -1180,7 +1173,7 @@ export default function VehicleSurveyForm() {
           id: 'recommendReasons',
           component: (
             <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
-              <label className="block text-black font-semibold text-lg mb-2">{`11. What are the reasons for your rating of ${
+              <label className="block text-black font-semibold text-lg mb-2">{`8. What are the reasons for your rating of ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : 'your vehicle'
@@ -1239,7 +1232,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="satisfactionLevel"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`12. How satisfied are you with your ${
+              >{`9. How satisfied are you with your ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : 'your vehicle'
@@ -1293,7 +1286,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="repurchaseLikelihood"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`13. How likely are you to repurchase a vehicle from ${
+              >{`10. How likely are you to repurchase a vehicle from ${
                 formData.brand === 'Other' ? formData.customBrand || 'this brand' : formData.brand || 'this brand'
               }?`}</label>
               <div className="mt-2">
@@ -1345,7 +1338,7 @@ export default function VehicleSurveyForm() {
               <label
                 htmlFor="alternativeBrand"
                 className="block text-black font-semibold text-lg mb-2"
-              >{`14. Which alternative vehicle did you consider when purchasing your ${
+              >{`11. Which alternative vehicle did you consider when purchasing your ${
                 formData.brand && formData.vehicleModel
                   ? `${formData.brand === 'Other' ? formData.customBrand || 'Other' : formData.brand} ${formData.vehicleModel === 'Other' ? formData.customModel || 'Other' : formData.vehicleModel}`
                   : highestPurchaseType
@@ -1436,10 +1429,145 @@ export default function VehicleSurveyForm() {
           isSingleChoice: true,
         },
         {
+          id: 'name',
+          component: (
+            <div className="mb-10 p-6 rounded-lg shadow-md border mt-8 question-border bg-white">
+              <label
+                htmlFor="name"
+                className="block text-black font-semibold text-lg mb-2"
+              >{`12. What's your name?`}</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`w-full p-3 border mt-2 rounded-lg ${
+                  errors.name && hasInteracted.name ? 'border-error' : ''
+                }`}
+              />
+              {errors.name && hasInteracted.name && (
+                <p className="text-error text-sm mt-1">{errors.name}</p>
+              )}
+            </div>
+          ),
+          validate: () => !!formData.name.trim(),
+          error: () => ({ name: 'Name is required' }),
+        },
+        {
+          id: 'age',
+          component: (
+            <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
+              <label
+                htmlFor="age"
+                className="block text-black font-semibold text-lg mb-2"
+              >{`13. What's your age group?`}</label>
+              <select
+                id="age"
+                name="age"
+                value={formData.age}
+                onChange={handleChange}
+                className={`w-full p-3 border mt-2 rounded-lg text-black ${
+                  errors.age && hasInteracted.age ? '' : ''
+                }`}
+              >
+                <option value="">Select Age Group</option>
+                {ageOptions.map((age) => (
+                  <option key={age} value={age}>
+                    {age}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ),
+          validate: () => !!formData.age,
+          error: () => ({ age: 'Please select an age group' }),
+          isSingleChoice: true,
+        },
+        {
+          id: 'gender',
+          component: (
+            <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
+              <label
+                htmlFor="gender"
+                className="block text-black font-semibold text-lg mb-2"
+              >{`14. Please select your gender`}</label>
+              <select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className={`w-full p-3 border mt-2 rounded-lg text-black ${
+                  errors.gender && hasInteracted.gender ? '' : ''
+                }`}
+              >
+                <option value="">Select Gender</option>
+                {genderOptions.map((gender) => (
+                  <option key={gender} value={gender}>
+                    {gender}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ),
+          validate: () => !!formData.gender,
+          error: () => ({ gender: 'Please select a gender' }),
+          isSingleChoice: true,
+        },
+        {
+          id: 'city',
+          component: (
+            <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
+              <label
+                htmlFor="city"
+                className="block text-black font-semibold text-lg mb-2"
+              >{`15. Which city do you live in?`}</label>
+              <select
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className={`w-full p-3 border mt-2 rounded-lg text-black ${
+                  errors.city && hasInteracted.city ? '' : ''
+                }`}
+              >
+                <option value="">Select City</option>
+                {cityOptions.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+              {formData.city === 'Other' && (
+                <div className="mt-4">
+                  <input
+                    type="text"
+                    id="otherCity"
+                    name="otherCity"
+                    value={formData.otherCity}
+                    onChange={handleChange}
+                    placeholder="Please specify"
+                    className={`w-full p-3 border rounded-lg text-black ${
+                      errors.otherCity && hasInteracted.otherCity ? '' : ''
+                    }`}
+                  />
+                </div>
+              )}
+            </div>
+          ),
+          validate: () =>
+            !!formData.city && (formData.city !== 'Other' || !!formData.otherCity.trim()),
+          error: () =>
+            !formData.city
+              ? { city: 'Please select a city' }
+              : { otherCity: 'Please specify your city' },
+          isSingleChoice: true,
+        },
+        {
           id: 'contactDetails',
           component: (
             <div className="mb-10 p-6 rounded-lg mt-8 shadow-md border question-border bg-white">
-              <label className="block text-black font-semibold text-lg mb-2">{`15. Please provide your contact details (optional)`}</label>
+              <label className="block text-black font-semibold text-lg mb-2">{`16. Please provide your contact details (optional)`}</label>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
                   <input
@@ -1513,55 +1641,57 @@ export default function VehicleSurveyForm() {
     return {};
   };
 
-  const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (DEBUG) console.log('handleNext called:', { currentQuestionIndex, questionId: questions[currentQuestionIndex]?.id });
+const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
+  e.preventDefault();
+  if (DEBUG) console.log('handleNext called:', { currentQuestionIndex, questionId: questions[currentQuestionIndex]?.id });
 
-    setHasInteracted((prev) => ({
-      ...prev,
-      [questions[currentQuestionIndex]?.id]: true,
-    }));
+  setHasInteracted((prev) => ({
+    ...prev,
+    [questions[currentQuestionIndex]?.id]: true,
+  }));
 
-    const questionErrors = validateCurrentQuestion();
-    if (Object.keys(questionErrors).length > 0) {
-      setErrors((prev) => ({ ...prev, ...questionErrors }));
-      if (DEBUG) console.log('Validation errors on Next:', questionErrors);
+  const questionErrors = validateCurrentQuestion();
+  if (Object.keys(questionErrors).length > 0) {
+    setErrors((prev) => ({ ...prev, ...questionErrors }));
+    if (DEBUG) console.log('Validation errors on Next:', questionErrors);
+    return;
+  }
+
+  if (currentQuestionIndex === 0) {
+    if (['Automotive', 'Automotive Research', 'Market Research', 'Automotive Magazine / Media', 'Advertising / Ad Agency'].includes(formData.industry)) {
+      setShowSurvey(false);
+      setShowThankYou(true);
       return;
     }
+  }
 
-    if (currentQuestionIndex === 4) {
-      if (formData.purchaseTypes.length === 0) {
-        setErrors((prev) => ({
-          ...prev,
-          purchaseTypes: 'Please select at least one purchase type',
-        }));
-        if (DEBUG) alert('Error: No purchase type selected');
-        return;
-      }
-      if (formData.purchaseTypes.includes('10. None of the above')) {
-        const newErrors = validate();
-        if (Object.keys(newErrors).length === 0) {
-          if (DEBUG) alert('Submitting form for "None of the above"');
-          handleSubmit(new Event('submit') as any);
-        } else {
-            setErrors(newErrors);
-            if (DEBUG) console.log('Validation errors on submit (None selected):', newErrors);
-          }
-        return;
-      }
-    }
-
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => {
-        if (DEBUG) console.log(`Advancing to question ${prev + 1} (${questions[prev + 1]?.id})`);
-        return prev + 1;
-      });
-      setHasInteracted((prev) => ({
+  if (currentQuestionIndex === 1) {
+    if (formData.purchaseTypes.length === 0) {
+      setErrors((prev) => ({
         ...prev,
-        [questions[currentQuestionIndex + 1]?.id]: false,
+        purchaseTypes: 'Please select at least one purchase type',
       }));
+      if (DEBUG) alert('Error: No purchase type selected');
+      return;
     }
-  };
+    if (formData.purchaseTypes.includes('10. None of the above')) {
+      setShowSurvey(false);
+      setShowThankYou(true);
+      return;
+    }
+  }
+
+  if (currentQuestionIndex < questions.length - 1) {
+    setCurrentQuestionIndex((prev) => {
+      if (DEBUG) console.log(`Advancing to question ${prev + 1} (${questions[prev + 1]?.id})`);
+      return prev + 1;
+    });
+    setHasInteracted((prev) => ({
+      ...prev,
+      [questions[currentQuestionIndex + 1]?.id]: false,
+    }));
+  }
+};
 
   const handleAgree = () => {
     setShowModal(false);
@@ -1576,7 +1706,7 @@ export default function VehicleSurveyForm() {
   const shouldShowSubmitButton = () => {
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
     const isNoneSelected = formData.purchaseTypes.includes('10. None of the above');
-    const show = (isLastQuestion && !isNoneSelected) || (currentQuestionIndex === 4 && isNoneSelected);
+    const show = (isLastQuestion && !isNoneSelected) || (currentQuestionIndex === 1 && isNoneSelected);
     if (DEBUG)
       console.log('shouldShowSubmitButton:', { isLastQuestion, isNoneSelected, show });
     return show;
@@ -1589,7 +1719,7 @@ export default function VehicleSurveyForm() {
     const show =
       (!currentQuestion?.isSingleChoice || currentQuestion?.id === 'purchaseDate') &&
       !isLastQuestion &&
-      !(currentQuestionIndex === 4 && isNoneSelected);
+      !(currentQuestionIndex === 1 && isNoneSelected);
     if (DEBUG)
       console.log('shouldShowNextButton:', {
         currentQuestionId: currentQuestion?.id,
@@ -1707,7 +1837,8 @@ export default function VehicleSurveyForm() {
                 , and I agree to its terms.
               </label>
             </div>
-            <div className="flex justify-end modal-buttons">
+            <div className="flex justify-end gap-4">
+              
               <button
                 onClick={handleAgree}
                 disabled={!privacyPolicyAgreed}
@@ -1721,7 +1852,7 @@ export default function VehicleSurveyForm() {
               </button>
               <button
                 onClick={handleDisagree}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-primary-color"
+                className="px-4 py-2 bg-gray-300 text-white rounded-lg hover:bg-gray-400"
               >
                 Disagree
               </button>
@@ -1730,78 +1861,72 @@ export default function VehicleSurveyForm() {
         </div>
       )}
       {showSurvey && (
-        <>
-          <ReCaptcha />
-          <div className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
-            <div className="max-w-4xl mx-auto p-6 flex justify-between items-center w-full sm:flex-col sm:items-center survey-header">
-              <div className="w-[250px] sm:w-full">
-                <hr className="horizontal-line" />
-                <h1 className="survey-title">
-                  Vehicle Ownership Survey
-                </h1>
-                <div className="progress-container mt-2">
-                  <div className="progress-bar-bg">
-                    <div
-                      className="progress-bar-fill bg-primary"
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  <p className="progress-label text-gray-500">
-                    You have completed {progress}%
-                  </p>
-                </div>
-              </div>
-              <div className="p-2 rounded-lg ml-auto sm:ml-auto">
-                <img src="/minsurveylogosvg.svg" alt="Logo" className="h-12" />
-              </div>
+  <>
+    <ReCaptcha />
+    <div className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+      <div className="max-w-4xl mx-auto p-6 flex justify-between items-center w-full sm:flex-col sm:items-center survey-header">
+        <div className="w-[250px] sm:w-full">
+          <hr className="horizontal-line" />
+          <h1 className="survey-title">Vehicle Ownership Survey</h1>
+          <div className="progress-container mt-2">
+            <div className="progress-bar-bg">
+              <div
+                className="progress-bar-fill bg-primary"
+                style={{ width: `${progress}%` }}
+              ></div>
             </div>
+            <p className="progress-label text-gray-500">
+              You have completed {progress}%
+            </p>
           </div>
-          <form onSubmit={handleSubmit} className="mt-24">
-            {questions.slice(0, currentQuestionIndex + 1).map((question) => (
-              <div key={question.id}>{question.component}</div>
-            ))}
-            {(errors.form || submissionError) && (
-              <div className="mb-10 p-6 rounded-lg shadow-md border question-border bg-gray-50">
-                <p className="text-error text-xs text-center">
-                  {submissionError || errors.form}
-                </p>
-              </div>
-            )}
-            {isSubmitting && (
-              <div className="loader-overlay">
-                <div className="loader-container">
-                  <div className="loader"></div>
-                  <p className="loader-text">Please wait, submitting your survey...</p>
-                </div>
-              </div>
-            )}
-            <div className="flex justify-end form-buttons mt-6">
-              {shouldShowNextButton() && (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-color"
-                >
-                  Next
-                </button>
-              )}
-              {shouldShowSubmitButton() && (
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`px-4 py-2 rounded-lg text-white ${
-                    isSubmitting
-                      ? 'bg-gray-500 cursor-not-allowed'
-                      : 'bg-primary hover:bg-primary-color'
-                  }`}
-                >
-                  Submit
-                </button>
-              )}
-            </div>
-          </form>
-        </>
+        </div>
+        <div className="p-2 rounded-lg ml-auto sm:ml-auto">
+          <img src="/minsurveylogosvg.svg" alt="Logo" className="h-12" />
+        </div>
+      </div>
+    </div>
+    <form onSubmit={handleSubmit} className="mt-24">
+      {questions.slice(0, currentQuestionIndex + 1).map((question) => (
+        <div key={question.id}>{question.component}</div>
+      ))}
+      {(errors.form || submissionError) && (
+        <div className="mb-10 p-6 rounded-lg shadow-md border bg-red-50">
+          <p className="text-error text-sm">{errors.form || submissionError}</p>
+        </div>
       )}
+      <div className="flex justify-end form-buttons mt-6">
+        {shouldShowNextButton() && (
+          <button
+            type="button"
+            onClick={handleNext}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-color"
+          >
+            Next
+          </button>
+        )}
+        {shouldShowSubmitButton() && (
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`px-4 py-2 rounded-lg text-white ${
+              isSubmitting
+                ? 'bg-gray-500 cursor-not-allowed'
+                : 'bg-primary hover:bg-primary-color'
+            }`}
+          >
+            Submit
+          </button>
+        )}
+      </div>
+    </form>
+    {isSubmitting && (
+      <div className="full-screen-loader">
+        <div className="loader"></div>
+        <p className="text-gray-600 text-sm mt-2">Submitting your response...</p>
+      </div>
+    )}
+  </>
+)}
     </main>
   );
 }

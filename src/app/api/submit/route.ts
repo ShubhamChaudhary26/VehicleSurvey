@@ -4,12 +4,19 @@ import { connectToDatabase } from '@/lib/mongoose';
 
 export async function POST(request: Request) {
   try {
-  await connectToDatabase();
+    await connectToDatabase();
     const data = await request.json();
-  
 
-    // Define required fields based on whether purchaseType is 'None of the above'
-    const baseRequiredFields = ['name', 'age', 'gender', 'city', 'purchaseType'];
+    // Define required fields based on whether purchaseType is 'None of the above' or industry is disqualifying
+    const disqualifyingIndustries = [
+      'Automotive',
+      'Automotive Research',
+      'Market Research',
+      'Automotive Magazine / Media',
+      'Advertising / Ad Agency',
+    ];
+
+    const baseRequiredFields = ['industry', 'name', 'age', 'gender', 'city', 'purchaseType'];
     const vehicleRequiredFields = [
       'brand',
       'vehicleModel',
@@ -23,12 +30,47 @@ export async function POST(request: Request) {
       'alternativeVehicle',
     ];
 
+    // Check if industry is disqualifying
+    if (disqualifyingIndustries.includes(data.industry)) {
+      const requiredFields = [
+        'industry',
+        ...(data.industry === 'Other' ? ['customIndustry'] : []),
+      ];
+      const missingFields = requiredFields.filter(
+        (field) =>
+          data[field] === undefined ||
+          data[field] === null ||
+          (typeof data[field] === 'string' && data[field].trim() === '')
+      );
+      if (missingFields.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'Invalid payload',
+            details: `Missing or empty required fields: ${missingFields.join(', ')}`,
+          },
+          { status: 400 }
+        );
+      }
+      const surveyResponse = new SurveyResponse({
+        industry: data.industry,
+        customIndustry: data.customIndustry || undefined,
+        createdAt: new Date(),
+      });
+      await surveyResponse.save();
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
     // Check if purchaseType is 'None of the above'
     const isNoneSelected = data.purchaseType === 'None of the above';
     const requiredFields = isNoneSelected
-      ? [...baseRequiredFields, ...(data.city === 'Other' ? ['otherCity'] : [])]
+      ? [
+          ...baseRequiredFields,
+          ...(data.industry === 'Other' ? ['customIndustry'] : []),
+          ...(data.city === 'Other' ? ['otherCity'] : []),
+        ]
       : [
           ...baseRequiredFields,
+          ...(data.industry === 'Other' ? ['customIndustry'] : []),
           ...(data.city === 'Other' ? ['otherCity'] : []),
           ...vehicleRequiredFields,
           ...(data.vehicleModel === 'Other' ? ['customModel'] : []),
@@ -38,7 +80,10 @@ export async function POST(request: Request) {
         ];
 
     const missingFields = requiredFields.filter(
-      (field) => data[field] === undefined || data[field] === null || (typeof data[field] === 'string' && data[field].trim() === '')
+      (field) =>
+        data[field] === undefined ||
+        data[field] === null ||
+        (typeof data[field] === 'string' && data[field].trim() === '')
     );
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -84,7 +129,6 @@ export async function POST(request: Request) {
     );
   }
 }
-
 
 export async function GET() {
   try {

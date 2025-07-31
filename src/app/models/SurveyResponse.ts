@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 interface ISurveyResponse extends Document {
+  industry: string;
+  customIndustry?: string;
   name: string;
   age: string;
   gender: string;
@@ -19,7 +21,7 @@ interface ISurveyResponse extends Document {
   satisfactionLevel: number;
   repurchaseLikelihood: number;
   alternativeBrand?: string;
-  customAlternativeBrand?: string; 
+  customAlternativeBrand?: string;
   alternativeVehicle?: string;
   customAlternativeModelOther?: string;
   email?: string;
@@ -28,6 +30,8 @@ interface ISurveyResponse extends Document {
 }
 
 const SurveyResponseSchema = new Schema<ISurveyResponse>({
+  industry: { type: String, required: true },
+  customIndustry: { type: String },
   name: { type: String, required: true },
   age: { type: String, required: true },
   gender: { type: String, required: true },
